@@ -1,18 +1,17 @@
-#include <stdio.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/msg.h>
-#include <unistd.h>
 #include <sys/shm.h>
-#include <string.h>
+#include <unistd.h>
 #include <time.h>
 #include <fcntl.h> 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define MATRIX_SIZE 128
 #define CLIENTS 8
-#define BLOCK_SIZE 16
+#define BLOCK_SIZE 32
 #define BLOCKS_PER_SM 8
 #define BLOCK_BYTES (BLOCK_SIZE * BLOCK_SIZE)
 #define DATA_PER_SM (MATRIX_SIZE * MATRIX_SIZE / CLIENTS)
@@ -39,42 +38,8 @@ int check_need(int buf, int k) {
     startNum = 2048 * k;
     endNum = 2048 * (k + 1) - 1;
 
-    if ( startNum <= buf && buf <= endNum ) return 1;
+    if (startNum <= buf && buf <= endNum) return 1;
     return 0;
-
-    // if (k == 0) {
-    //     if (0 <= buf && buf <= 2047) return 1;
-    //     else return 0;
-    // }
-    // else if (k == 1) {
-    //     if (2048 <= buf && buf <= 4095) return 1;
-    //     else return 0;
-    // }
-    // else if (k == 2) {
-    //     if (4096 <= buf && buf <= 6143) return 1;
-    //     else return 0;
-    // }
-    // else if (k == 3) {
-    //     if (6144 <= buf && buf <= 8191) return 1;
-    //     else return 0;
-    // }
-    // else if (k == 4) {
-    //     if (8192 <= buf && buf <= 10239) return 1;
-    //     else return 0;
-    // }
-    // else if (k == 5) {
-    //     if (10240 <= buf && buf <= 12287) return 1;
-    //     else return 0;
-    // }
-    // else if (k == 6) {
-    //     if (12288 <= buf && buf <= 14335) return 1;
-    //     else return 0;
-    // }
-    // else if (k == 7) {
-    //     if (14336 <= buf && buf <= 16383) return 1;
-    //     else return 0;
-    // }
-
 }
 
 void selection_sort(int arr[], int n) {
@@ -95,30 +60,24 @@ void selection_sort(int arr[], int n) {
 int main(void) {
     pid_t pid;
     int matrix[MATRIX_SIZE][MATRIX_SIZE];
-    int i, j, k;
     int sm[8][2];
-    int childSmNum;
-    pid_t parent_pid;
-    parent_pid = getpid();
-
     int msgid;
     struct message msg;
+    pid_t parent_pid = getpid();
+    int i, j, k;
+    int childSmNum;
 
     msgid = msgget((key_t)1234, 0666 | IPC_CREAT);
-    // if (msgid == -1) { // 두 번 작성한 이유가 있는지
-    //     perror("msgget failed");
-    //     exit(EXIT_FAILURE);
-    // }
+    
     if (msgid == -1) {
         perror("메시지 큐 생성 실패");
         exit(EXIT_FAILURE);
-    }
-    else {
+    } else {
         printf("메시지 큐 생성 성공: ID = %d\n", msgid);
     }
 
     char server0_name[40]; // server0 파일 생성
-    sprintf(server0_name, "server0.bin", childSmNum);
+    sprintf(server0_name, "server0.bin");
     FILE* server0 = fopen(server0_name, "wb");
     if (server0 == NULL) {
         perror("fopen");
@@ -127,7 +86,7 @@ int main(void) {
     fclose(server0);
 
     char server1_name[40]; // server1 파일 생성
-    sprintf(server1_name, "server1.bin", childSmNum);
+    sprintf(server1_name, "server1.bin");
     FILE* server1 = fopen(server1_name, "wb");
     if (server1 == NULL) {
         perror("fopen");
@@ -146,14 +105,12 @@ int main(void) {
         pipe(sm_to_server[i]);
     }
 
-
     for (i = 0; i < 8; i++) {
         switch (pid = fork()) {
         case -1:
             perror("fork");
             exit(1);
-
-        case 0:
+        case 0: {
             childSmNum = i;
 
             close(sm[childSmNum][1]);
@@ -187,8 +144,6 @@ int main(void) {
 
             printf("\n--- 분할 직후 파일 저장됨: %s ---\n", filename);
             
-
-
             sleep(5);
           
             char request[10];
@@ -201,7 +156,7 @@ int main(void) {
                     perror("msgsnd failed");
                     exit(EXIT_FAILURE);
                 }
-                printf("%s요청보냄 : %s -> sm%d\n", msg.mtext, msg.mtext, msg.mtype - 1);
+                printf("%s요청보냄 : %s -> sm%d\n", msg.mtext, msg.mtext, (int)msg.mtype - 1);
             }
 
             sleep(3);
@@ -212,8 +167,7 @@ int main(void) {
                     perror("메시지 못받음\n");
                     exit(1);
                 }
-                printf("%s요청받음 : %s -> sm%d\n", msg.mtext, msg.mtext, msg.mtype - 1);
-
+                printf("%s요청받음 : %s -> sm%d\n", msg.mtext, msg.mtext, (int)msg.mtype - 1);
                 
                 char rcv_msg[10];
                 int k;
@@ -252,7 +206,7 @@ int main(void) {
 
             sleep(3);
 
-            char filename_updated1[40]; //client_sm(n)_updated.bin 파일 열기
+            char filename_updated1[40]; // client_sm(n)_updated.bin 파일 열기
             sprintf(filename_updated1, "client_sm%d_updated.bin", childSmNum);
             FILE* file_updated1 = fopen(filename_updated1, "rb");
             if (file_updated1 == NULL) {
@@ -266,7 +220,7 @@ int main(void) {
 
             if (num_elements == 0) {
                 printf("sm%d: updated 파일이 비어 있습니다.\n", childSmNum);
-                return 0;
+                return -1;
             }
 
             selection_sort(buffer, num_elements); // 두 버퍼에 나누어 저장
@@ -279,15 +233,6 @@ int main(void) {
             for (buffer_i = 1024; buffer_i < 2048; buffer_i++) {
                 half_buffer_2[buffer_i - 1024] = buffer[buffer_i];
             }
-            // for (buffer_i = 0; buffer_i < 2048; buffer_i++) {
-            //     if (buffer_i < 1024) {
-            //         half_buffer_1[buffer_i] = buffer[buffer_i];
-            //     }
-            //     else {
-            //         half_buffer_2[buffer_i - 1024] = buffer[buffer_i];
-            //     }
-            // }
-
 
             char filename_updated2[40];
             sprintf(filename_updated2, "client_sm%d_updated.bin", childSmNum);
@@ -301,7 +246,6 @@ int main(void) {
 
             printf("sm%d: 정렬 완료 후 updated 파일 저장됨: %s\n", childSmNum, filename_updated2);
 
-
             sleep(3);
 
             sleep(childSmNum + 1);
@@ -314,22 +258,23 @@ int main(void) {
             close(sm_to_server[childSmNum][1]);
 
             exit(0);
-
+        }
         default:
             break;
         }
     }
 
-    if (parent_pid == getpid()) {
+   if (parent_pid == getpid()) {    // 4 x 4
         for (i = 0; i < 8; i++) {
             close(sm[i][0]);
         }
-        int client_id, start_row, start_col;
-        for (client_id = 0; client_id < CLIENTS; client_id++) {
-            start_col = client_id * BLOCK_SIZE;
-            start_row = 0;
 
-            for (k = 0; k < CLIENTS; k++) {
+        int client_id, start_row, start_col; // row세로, col 가로
+        for (client_id = 0; client_id < CLIENTS; client_id++) {
+            start_col = (client_id % 4)*BLOCK_SIZE;
+            start_row = (client_id / 4)*BLOCK_SIZE;
+
+            for (k = 0; k < 2; k++) {
                 for (i = 0; i < BLOCK_SIZE; i++) {
                     for (j = 0; j < BLOCK_SIZE; j++) {
                         int row = start_row + i;
@@ -339,14 +284,39 @@ int main(void) {
                         write(sm[client_id][1], matrixChar, sizeof(char) * 10);
                     }
                 }
-                start_row += BLOCK_SIZE;
+                start_row += BLOCK_SIZE * 2;
             }
         }
-
         for (i = 0; i < 8; i++) {
             close(sm[i][1]);
         }
 
+    // if (parent_pid == getpid()) {    // 8 x 8
+    //     for (i = 0; i < 8; i++) {
+    //         close(sm[i][0]);
+    //     }
+    //     int client_id, start_row, start_col;
+    //     for (client_id = 0; client_id < CLIENTS; client_id++) {
+    //         start_col = client_id * BLOCK_SIZE;
+    //         start_row = 0;
+
+    //         for (k = 0; k < CLIENTS; k++) {
+    //             for (i = 0; i < BLOCK_SIZE; i++) {
+    //                 for (j = 0; j < BLOCK_SIZE; j++) {
+    //                     int row = start_row + i;
+    //                     int col = start_col + j;
+    //                     char matrixChar[10];
+    //                     sprintf(matrixChar, "%d", matrix[row][col]);
+    //                     write(sm[client_id][1], matrixChar, sizeof(char) * 10);
+    //                 }
+    //             }
+    //             start_row += BLOCK_SIZE;
+    //         }
+    //     }
+
+        // for (i = 0; i < 8; i++) {
+        //     close(sm[i][1]);
+        // }
 
 
         FILE* server0_final = fopen("server0.bin", "wb"); // server0_final 파일 열기
@@ -392,13 +362,9 @@ int main(void) {
     if (msgctl(msgid, IPC_RMID, NULL) == -1) {
         perror("msgctl failed");
         exit(EXIT_FAILURE);
-    }
-    else {
+    } else {
         printf("Message queue deleted successfully.\n");
     }
 
     return 0;
 }
-
-
-
