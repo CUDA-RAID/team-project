@@ -142,6 +142,8 @@ int main(void) {
 
             sleep(5);
 
+            // client-client communication start ************************************************** 
+
             char request[10];
             int target_sm_i;
             for (target_sm_i = 0; target_sm_i < 8; target_sm_i++) {
@@ -240,6 +242,9 @@ int main(void) {
 
             printf("sm%d: 정렬 완료 후 updated 파일 저장됨: %s\n", childSmNum, filename_updated2);
 
+            // client-client communication finish ************************************************* 
+
+            // client-server communication start ************************************************** 
             sprintf(fifo_name, "./server%d_FIFO", childSmNum);
 
             pd = open(fifo_name, O_WRONLY);
