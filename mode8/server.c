@@ -57,16 +57,16 @@ int main() {
 
     switch (fork()) {
         case 0:
-            for (i = 0; i < NUM_PROCESSES / 2; i++) {
-                sprintf(fifo_name, "./server%d_FIFO", i);
-                handle_fifo_and_write(fifo_name, "server0.bin");
-            }
+            handle_fifo_and_write("./server0_FIFO", "server0.bin");
+            handle_fifo_and_write("./server1_FIFO", "server0.bin");
+            handle_fifo_and_write("./server4_FIFO", "server0.bin");
+            handle_fifo_and_write("./server5_FIFO", "server0.bin");
             break;
         default:
-            for (i = NUM_PROCESSES / 2; i < NUM_PROCESSES; i++) {
-                sprintf(fifo_name, "./server%d_FIFO", i);
-                handle_fifo_and_write(fifo_name, "server1.bin");
-            }
+            handle_fifo_and_write("./server2_FIFO", "server0.bin");
+            handle_fifo_and_write("./server3_FIFO", "server0.bin");
+            handle_fifo_and_write("./server6_FIFO", "server0.bin");
+            handle_fifo_and_write("./server7_FIFO", "server0.bin");
             break;
     }
 
